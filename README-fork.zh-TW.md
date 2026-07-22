@@ -1,6 +1,6 @@
-# Docsy Example 分支版本 — 離線 npm 相依套件
+# Docsy Example 分支版本 — 離線相依套件
 
-本儲存庫是 [Docsy Example](https://github.com/google/docsy-example) 的分支版本，適用於無法從公用套件庫下載 npm 套件的受限網路環境。儲存庫已包含各平台專用的 `node_modules/` 目錄及 Hugo Extended，因此使用者複製儲存庫後不需要執行 `npm install`。
+本儲存庫是 [Docsy Example](https://github.com/google/docsy-example) 的分支版本，適用於受限網路環境。儲存庫已將各平台專用的 npm 相依套件及 Hugo Extended 收錄於 `node_modules/`，並將 Docsy Hugo Module 收錄於 `_vendor/`，因此一般建置在複製儲存庫後不需要下載建置相依套件。
 
 ## 選擇正確的分支
 
@@ -31,7 +31,8 @@ Set-Location docsy-example-offline
 
 - Node.js 22 或更新版本（依 `package.json` 的設定）。
 - 不需要另外安裝 Hugo；`node_modules/` 已包含 Hugo Extended。
-- 如果 Hugo 必須下載 Docsy 佈景主題模組，則需要 Go 與 Git。詳情請參閱 [離線支援範圍](#離線支援範圍)。
+- 建議使用 Git 複製儲存庫，以保留檔案中繼資料。
+- 一般建置不需要 Go 或預先準備 Go Module 快取，因為 `_vendor/` 已包含 Docsy 模組。
 
 ## 執行網站
 
@@ -61,14 +62,20 @@ npm run build:production
 
 ## 離線支援範圍
 
-本分支版本已包含 npm 相依套件，但 Docsy 佈景主題仍宣告為遠端 Hugo Module（`github.com/google/docsy/theme`）。因此，在全新的電腦上第一次執行 Hugo 建置時，仍可能嘗試下載該佈景主題及其 Hugo Module 相依套件。
+本分支版本已包含兩類建置相依套件：
 
-若要在完全隔離的環境中使用，請先在將儲存庫移入該環境之前完成下列其中一項準備：
+- `node_modules/` 包含 npm 套件及平台專用的 Hugo Extended 執行檔。
+- `_vendor/` 包含宣告為 `github.com/google/docsy/theme` 的 Docsy Hugo Module。
 
-- 建立必要的 Go Module 快取，並將快取一併移至離線環境；或
-- 在可連線的電腦上執行 `npx hugo mod vendor`，並將產生的 `_vendor/` 目錄提交至儲存庫。
+Hugo 會自動比對 `_vendor/modules.txt` 與 `hugo.yaml` 中的 module import，並在嘗試 Go Module 解析之前載入本地副本。選用的網站功能或自訂內容如果明確要求取得遠端資源，仍需另外將這些資源收錄至儲存庫。
 
-Hugo 可直接使用已收錄於儲存庫的模組，不需要重新下載。詳情請參閱官方的 [Hugo Module vendoring 文件](https://gohugo.io/hugo-modules/use-modules/#vendor)。
+如需了解解析流程、離線驗證命令與維護注意事項，請參閱[〈Hugo 如何使用已收錄的模組〉](docs/hugo-offline-modules.zh-TW.md)。
+
+## 技術文件
+
+其他實作原理、疑難排解與維護資訊收錄於 `docs/` 目錄：
+
+- [Hugo 如何使用已收錄的模組](docs/hugo-offline-modules.zh-TW.md) — 說明模組解析、`_vendor/` 與 `node_modules/` 的關係、嚴格離線驗證、Windows vendoring workaround 及 alias 處理。
 
 ## 如何製作這個離線版本
 
@@ -94,10 +101,22 @@ npm install-scripts approve hugo-extended
 
 ### 3. 將 Hugo Modules 收錄至儲存庫
 
-安裝 npm 相依套件後，將 Docsy 佈景主題及其 Hugo Module 相依套件下載至 `_vendor/`：
+安裝 npm 相依套件後，將 Docsy 佈景主題及其 Hugo Module 相依套件下載至 `_vendor/`。由於 Docsy 會從專案層級的 `node_modules/` mount Bootstrap 與 Font Awesome，直接在儲存庫中執行 `hugo mod vendor` 可能會在 Windows 產生錯誤的組合路徑。請改由只有 Hugo 與 Go 設定檔、但沒有 `node_modules/` 的暫存 source 目錄產生 vendor 目錄：
+
+```powershell
+$vendorStage = Join-Path $env:TEMP ("docsy-example-hugo-vendor-" + [guid]::NewGuid().ToString("N"))
+New-Item -ItemType Directory -Path $vendorStage | Out-Null
+Copy-Item -LiteralPath .\hugo.yaml, .\go.mod, .\go.sum -Destination $vendorStage
+npx --offline hugo mod vendor --source $vendorStage
+if ($LASTEXITCODE -ne 0) { throw "Hugo Module vendoring failed." }
+Remove-Item -LiteralPath .\_vendor -Recurse -Force -ErrorAction SilentlyContinue
+Copy-Item -LiteralPath (Join-Path $vendorStage "_vendor") -Destination . -Recurse
+Remove-Item -LiteralPath $vendorStage -Recurse -Force
+```
+
+提交產生的目錄：
 
 ```bash
-npx hugo mod vendor
 git add _vendor
 git commit -m "Vendor Hugo modules for offline builds"
 ```
@@ -119,6 +138,8 @@ npm run build:production
 ```
 
 建置程序應只使用 `node_modules/` 與 `_vendor/` 即可完成。將 `_vendor/` 提交至兩個分支且通過此測試後，一般建置就不再需要另外移轉 Go Module 快取。
+
+如需同時停用 npm 與 Go Module 下載的嚴格驗證方式，請參閱[〈Hugo 如何使用已收錄的模組〉](docs/hugo-offline-modules.zh-TW.md)。
 
 ### 日後更新相依套件
 
