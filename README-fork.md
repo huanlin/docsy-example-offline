@@ -11,6 +11,8 @@ The bundled native executables are platform-specific. Clone the branch that matc
 | Linux            | `main`    |
 | Windows          | `windows` |
 
+**Key concept:** Only `node_modules/` must be prepared separately for each operating system. `_vendor/`, documentation, and platform-independent configuration should be identical on both branches.
+
 > **Warning:** Do not merge `main` and `windows` directly. Each branch tracks a different platform-specific `node_modules/` tree, so merging the branches can create large conflicts or mix incompatible executables and npm command shims. Put shared changes such as documentation, `_vendor/`, and platform-independent configuration in dedicated commits, then cherry-pick those commits to the other branch. To synchronize only selected files, use `git restore --source=<branch> -- <files>` and commit the result.
 
 Linux:
