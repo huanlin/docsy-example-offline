@@ -11,6 +11,8 @@
 | Linux    | `main`    |
 | Windows  | `windows` |
 
+> **警告：** 請勿直接合併 `main` 與 `windows`。兩個分支分別追蹤不同平台專用的 `node_modules/`，直接合併可能造成大量衝突，或混入不相容的執行檔及 npm 命令啟動檔。請將文件、`_vendor/` 與平台無關設定等共用變更建立為獨立 commit，再 cherry-pick 至另一個分支。如果只需要同步指定檔案，請使用 `git restore --source=<branch> -- <files>`，然後提交結果。
+
 Linux：
 
 ```bash
