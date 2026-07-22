@@ -10,3 +10,11 @@ This is an offline version of [Docsy Example](https://github.com/google/docsy-ex
 - package.json
   - Use the newer version of adm-zip: v0.6.0. Reason: resolve known vulnerabilities.
   - Allow hugo-extended to run postinstall.js. Command executed: `npm install-scripts approve hugo-extended`.
+
+## Notes
+
+Run the local version of hugo:
+
+```bash
+npx hugo version
+```
