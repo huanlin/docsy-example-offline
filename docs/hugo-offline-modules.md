@@ -35,6 +35,21 @@ _vendor/
 
 ## How Hugo resolves the module
 
+At build time, Hugo's resolution of `github.com/google/docsy/theme` can be summarized as follows:
+
+```text
+module import in hugo.yaml
+            |
+            v
+_vendor/modules.txt at the repository root
+            |
+            v
+_vendor/github.com/google/docsy/theme
+            |
+            v
+Use local templates, SCSS, and static files
+```
+
 When Hugo reads the import for `github.com/google/docsy/theme`, it checks the vendored module metadata and matches the module path and version to `_vendor/github.com/google/docsy/theme`. Hugo then loads the theme configuration, templates, assets, translations, and static files from that local directory instead of downloading the module through Go.
 
 The local directory is selected automatically; no replacement entry is required in `go.mod` or `hugo.yaml`. If no matching vendored module is available, Hugo can fall back to normal Go Module resolution, which may use the local Go Module cache or the network.
