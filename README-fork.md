@@ -1,6 +1,6 @@
-# Docsy Example fork — offline npm dependencies
+# Docsy Example fork — offline dependencies
 
-This repository is a fork of [Docsy Example](https://github.com/google/docsy-example) for restricted network environments where npm packages cannot be downloaded from public registries. The platform-specific `node_modules/` directory, including Hugo Extended, is committed to the repository, so users do not need to run `npm install` after cloning it.
+This repository is a fork of [Docsy Example](https://github.com/google/docsy-example) for restricted network environments. It includes the platform-specific npm dependencies and Hugo Extended in `node_modules/`, together with the Docsy Hugo Module in `_vendor/`, so a normal build does not need to download build dependencies after cloning the repository.
 
 ## Choose the correct branch
 
@@ -31,7 +31,8 @@ Using `git clone` is recommended. A GitHub source archive contains the committed
 
 - Node.js 22 or later, as specified by `package.json`.
 - No separate Hugo installation is required; Hugo Extended is included in `node_modules/`.
-- Go and Git are required if Hugo must download the Docsy theme module. See [Offline scope](#offline-scope).
+- Git is recommended for cloning the repository so file metadata is preserved.
+- Go and a populated Go Module cache are not required for normal builds because the Docsy module is included in `_vendor/`.
 
 ## Run the site
 
@@ -61,14 +62,20 @@ npm run build:production
 
 ## Offline scope
 
-This fork bundles the npm dependencies, but the Docsy theme is still declared as a remote Hugo Module (`github.com/google/docsy/theme`). On a clean machine, the first Hugo build may therefore try to download the theme and its Hugo Module dependencies.
+This fork includes both categories of build dependency:
 
-For a fully isolated environment, prepare one of the following before moving the repository into that environment:
+- `node_modules/` contains the npm packages and the platform-specific Hugo Extended executable.
+- `_vendor/` contains the Docsy Hugo Module declared as `github.com/google/docsy/theme`.
 
-- Populate and transfer the required Go Module cache; or
-- On a connected machine, run `npx hugo mod vendor` and commit the generated `_vendor/` directory.
+Hugo automatically matches the entry in `_vendor/modules.txt` with the module import in `hugo.yaml` and loads the local copy before attempting Go Module resolution. Optional site features or custom content that explicitly fetch remote resources may still require those resources to be bundled separately.
 
-Hugo uses vendored modules without downloading them. See the official [Hugo Module vendoring documentation](https://gohugo.io/hugo-modules/use-modules/#vendor) for details.
+For the resolution process, offline verification commands, and maintenance details, see [How Hugo uses vendored modules](docs/hugo-offline-modules.md).
+
+## Technical documentation
+
+Additional implementation details, troubleshooting notes, and maintenance guidance are kept in the `docs/` directory:
+
+- [How Hugo uses vendored modules](docs/hugo-offline-modules.md) — explains module resolution, the relationship between `_vendor/` and `node_modules/`, strict offline verification, the Windows vendoring workaround, and alias handling.
 
 ## How this offline fork is prepared
 
@@ -94,10 +101,22 @@ Run `npm install` on a connected machine, then commit the resulting `node_module
 
 ### 3. Vendor the Hugo Modules
 
-After the npm dependencies have been installed, download the Docsy theme and its Hugo Module dependencies into `_vendor/`:
+After the npm dependencies have been installed, download the Docsy theme and its Hugo Module dependencies into `_vendor/`. Because Docsy mounts Bootstrap and Font Awesome from the project-level `node_modules/`, running `hugo mod vendor` directly from the repository can produce an invalid combined path on Windows. Generate the vendor directory from a temporary source directory that contains the Hugo and Go configuration files but no `node_modules/`:
+
+```powershell
+$vendorStage = Join-Path $env:TEMP ("docsy-example-hugo-vendor-" + [guid]::NewGuid().ToString("N"))
+New-Item -ItemType Directory -Path $vendorStage | Out-Null
+Copy-Item -LiteralPath .\hugo.yaml, .\go.mod, .\go.sum -Destination $vendorStage
+npx --offline hugo mod vendor --source $vendorStage
+if ($LASTEXITCODE -ne 0) { throw "Hugo Module vendoring failed." }
+Remove-Item -LiteralPath .\_vendor -Recurse -Force -ErrorAction SilentlyContinue
+Copy-Item -LiteralPath (Join-Path $vendorStage "_vendor") -Destination . -Recurse
+Remove-Item -LiteralPath $vendorStage -Recurse -Force
+```
+
+Commit the generated directory:
 
 ```bash
-npx hugo mod vendor
 git add _vendor
 git commit -m "Vendor Hugo modules for offline builds"
 ```
@@ -119,6 +138,8 @@ npm run build:production
 ```
 
 The build should complete using only `node_modules/` and `_vendor/`. After `_vendor/` has been committed to both branches and this test passes, the repository no longer needs a transferred Go Module cache for normal builds.
+
+See [How Hugo uses vendored modules](docs/hugo-offline-modules.md) for a stricter verification that disables both npm and Go Module downloads.
 
 ### Updating dependencies later
 
