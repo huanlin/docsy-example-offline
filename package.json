@@ -78,5 +78,8 @@
     "proseWrap": "always",
     "singleQuote": true
   },
-  "cSpell:ignore": ""
+  "cSpell:ignore": "",
+  "overrides": {
+    "adm-zip": "^0.6.0"
+  }  
 }
