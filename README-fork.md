@@ -70,13 +70,56 @@ For a fully isolated environment, prepare one of the following before moving the
 
 Hugo uses vendored modules without downloading them. See the official [Hugo Module vendoring documentation](https://gohugo.io/hugo-modules/use-modules/#vendor) for details.
 
-## Changes in this fork
+## How this offline fork is prepared
 
-- Removed `node_modules/` from `.gitignore` and committed the installed npm dependencies separately for Linux and Windows.
-- Pinned Hugo Extended to `0.164.0`.
-- Overrode `adm-zip` with version `0.6.0` to address known vulnerabilities in older releases.
-- Approved the `hugo-extended` post-install script through the `allowScripts` setting in `package.json`. The maintainer used `npm install-scripts approve hugo-extended` when preparing the dependencies; users do not need to run this command.
+This section describes the maintainer workflow used to create or update the offline repository. End users do not need to perform these steps.
 
-## Updating the bundled dependencies
+### 1. Configure the npm dependencies
 
-Dependency updates must be prepared separately on both branches because the bundled Hugo executable is platform-specific. After updating, verify the Hugo version and run a production build before committing the refreshed `node_modules/` directory.
+- Remove `node_modules/` from `.gitignore` so the installed dependencies can be committed.
+- Pin Hugo Extended to the required version in `package.json`; this fork currently uses `0.164.0`.
+- Override `adm-zip` with version `0.6.0` to address known vulnerabilities in older releases.
+- Approve the `hugo-extended` post-install script through the `allowScripts` setting in `package.json`. The command originally used to create this setting was:
+
+```bash
+npm install-scripts approve hugo-extended
+```
+
+### 2. Install the platform-specific npm dependencies
+
+Run `npm install` on a connected machine, then commit the resulting `node_modules/` directory. This must be done separately for each operating system because the bundled Hugo executable and npm command shims are platform-specific:
+
+- Run `npm install` on Linux and commit `node_modules/` to `main`.
+- Run `npm install` on Windows and commit `node_modules/` to `windows`.
+
+### 3. Vendor the Hugo Modules
+
+After the npm dependencies have been installed, download the Docsy theme and its Hugo Module dependencies into `_vendor/`:
+
+```bash
+npx hugo mod vendor
+git add _vendor
+git commit -m "Vendor Hugo modules for offline builds"
+```
+
+The contents of `_vendor/` are platform-independent, so they only need to be generated once. Both branches must contain the directory, however. If it was committed on `main`, apply the same commit to `windows`:
+
+```bash
+git switch windows
+git cherry-pick <vendor-commit-hash>
+```
+
+### 4. Verify the offline build
+
+Disconnect or block network access, then verify the bundled Hugo executable and run a production build on both branches:
+
+```bash
+npx --offline hugo version
+npm run build:production
+```
+
+The build should complete using only `node_modules/` and `_vendor/`. After `_vendor/` has been committed to both branches and this test passes, the repository no longer needs a transferred Go Module cache for normal builds.
+
+### Updating dependencies later
+
+Prepare npm dependency updates independently on Linux and Windows, then commit the refreshed `node_modules/` directory to the corresponding branch. Regenerate `_vendor/` whenever `go.mod`, `go.sum`, or the Docsy version changes, and apply the same vendor commit to both branches. Always repeat the offline verification before publishing the updates.

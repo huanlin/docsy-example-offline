@@ -70,13 +70,56 @@ npm run build:production
 
 Hugo 可直接使用已收錄於儲存庫的模組，不需要重新下載。詳情請參閱官方的 [Hugo Module vendoring 文件](https://gohugo.io/hugo-modules/use-modules/#vendor)。
 
-## 本分支版本的變更
+## 如何製作這個離線版本
 
-- 從 `.gitignore` 移除 `node_modules/`，並分別在 Linux 與 Windows 分支提交已安裝的 npm 相依套件。
-- 將 Hugo Extended 固定為 `0.164.0`。
+本節說明維護者建立或更新離線儲存庫時所使用的完整流程。一般使用者不需要執行這些步驟。
+
+### 1. 設定 npm 相依套件
+
+- 從 `.gitignore` 移除 `node_modules/`，以便提交已安裝的相依套件。
+- 在 `package.json` 中固定所需的 Hugo Extended 版本；本分支目前使用 `0.164.0`。
 - 將 `adm-zip` 覆寫為 `0.6.0`，以處理舊版已知的安全漏洞。
-- 透過 `package.json` 的 `allowScripts` 設定允許執行 `hugo-extended` 的安裝後指令碼。維護者準備相依套件時使用了 `npm install-scripts approve hugo-extended`；一般使用者不需要執行此命令。
+- 透過 `package.json` 的 `allowScripts` 設定允許執行 `hugo-extended` 的安裝後指令碼。最初用來建立此設定的命令如下：
 
-## 更新內附的相依套件
+```bash
+npm install-scripts approve hugo-extended
+```
 
-由於內附的 Hugo 執行檔因平台而異，必須分別在兩個分支準備相依套件更新。更新後，請先確認 Hugo 版本並執行正式環境建置，再提交更新後的 `node_modules/` 目錄。
+### 2. 安裝各平台專用的 npm 相依套件
+
+在可連線的電腦上執行 `npm install`，然後提交產生的 `node_modules/` 目錄。由於內附的 Hugo 執行檔與 npm 命令啟動檔因平台而異，必須分別在兩種作業系統執行：
+
+- 在 Linux 執行 `npm install`，並將 `node_modules/` 提交至 `main`。
+- 在 Windows 執行 `npm install`，並將 `node_modules/` 提交至 `windows`。
+
+### 3. 將 Hugo Modules 收錄至儲存庫
+
+安裝 npm 相依套件後，將 Docsy 佈景主題及其 Hugo Module 相依套件下載至 `_vendor/`：
+
+```bash
+npx hugo mod vendor
+git add _vendor
+git commit -m "Vendor Hugo modules for offline builds"
+```
+
+`_vendor/` 的內容與作業系統無關，因此只需產生一次，但兩個分支都必須包含該目錄。如果是在 `main` 建立 commit，可以將同一個 commit 套用到 `windows`：
+
+```bash
+git switch windows
+git cherry-pick <vendor-commit-hash>
+```
+
+### 4. 驗證離線建置
+
+中斷或封鎖網路連線，然後在兩個分支分別確認內附的 Hugo 執行檔，並執行正式環境建置：
+
+```bash
+npx --offline hugo version
+npm run build:production
+```
+
+建置程序應只使用 `node_modules/` 與 `_vendor/` 即可完成。將 `_vendor/` 提交至兩個分支且通過此測試後，一般建置就不再需要另外移轉 Go Module 快取。
+
+### 日後更新相依套件
+
+npm 相依套件必須分別在 Linux 與 Windows 準備，再將更新後的 `node_modules/` 提交至對應分支。每當 `go.mod`、`go.sum` 或 Docsy 版本異動時，請重新產生 `_vendor/`，並將同一個 vendor commit 套用至兩個分支。發布更新前，務必再次進行離線驗證。
