@@ -7,4 +7,6 @@ This is an offline version of [Docsy Example](https://github.com/google/docsy-ex
 ## What's changed
 
 - Removed `node_modules/` from `.gitignore`, thus the `node_modules` folder is stored in the repo. 
-- Use the newer version of adm-zip: v0.6.0. Reason: resolve known vulnerabilities.
+- package.json
+  - Use the newer version of adm-zip: v0.6.0. Reason: resolve known vulnerabilities.
+  - Allow hugo-extended to run postinstall.js. Command executed: `npm install-scripts approve hugo-extended`.

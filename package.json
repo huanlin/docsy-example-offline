@@ -81,5 +81,8 @@
   "cSpell:ignore": "",
   "overrides": {
     "adm-zip": "^0.6.0"
-  }  
+  },
+  "allowScripts": {
+    "hugo-extended@0.164.0": true
+  }
 }
