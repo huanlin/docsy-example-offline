@@ -35,6 +35,21 @@ _vendor/
 
 ## Hugo 如何解析模組
 
+建置時，Hugo 對 `github.com/google/docsy/theme` 的解析流程可概括如下：
+
+```text
+hugo.yaml 的 module import
+            │
+            ▼
+專案根目錄的 _vendor/modules.txt
+            │
+            ▼
+_vendor/github.com/google/docsy/theme
+            │
+            ▼
+使用本地模板、SCSS、靜態檔案
+```
+
 Hugo 讀到 `github.com/google/docsy/theme` 的 import 後，會檢查已收錄的模組資訊，並依 module path 與版本對應至 `_vendor/github.com/google/docsy/theme`。接著 Hugo 會從該本地目錄載入主題設定、模板、assets、翻譯與靜態檔案，而不是透過 Go 下載模組。
 
 Hugo 會自動選用本地目錄，不需要在 `go.mod` 或 `hugo.yaml` 另外加入 replacement。如果找不到符合的已收錄模組，Hugo 才可能回到一般的 Go Module 解析流程，使用本機 Go Module 快取或外部網路。
